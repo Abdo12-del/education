@@ -39,7 +39,7 @@ if [ ! -f "$PREFIX_SSL/include/openssl/ssl.h" ]; then
 	if [ ! -d "$SRC/openssl/.git" ]; then
 		# pick latest stable 3.x tag
 		TAG=$(git ls-remote --tags https://github.com/openssl/openssl 'openssl-3.*' \
-			| grep -vE '\^\{\}|beta|rc' | sed 's#.*refs/tags/##' | sort -V | tail -1)
+			| sed -n 's#.*refs/tags/\(openssl-3\.[0-9][0-9]*\.[0-9][0-9]*\)$#\1#p' | sort -V | tail -1)
 		log "openssl tag: $TAG"
 		git clone --depth 1 --branch "$TAG" https://github.com/openssl/openssl "$SRC/openssl"
 	fi
@@ -57,7 +57,7 @@ log "openssl: $(ls "$PREFIX_SSL/include/openssl/ssl.h")"
 log "Cloning CPython..."
 if [ ! -d "$SRC/cpython/.git" ]; then
 	TAG=$(git ls-remote --tags https://github.com/python/cpython 'v3.14.*' \
-		| grep -vE '\^\{\}|rc|a[0-9]|b[0-9]' | sed 's#.*refs/tags/##' | sort -V | tail -1)
+		| sed -n 's#.*refs/tags/\(v3\.14\.[0-9][0-9]*\)$#\1#p' | sort -V | tail -1)
 	log "cpython tag: $TAG"
 	git clone --depth 1 --branch "$TAG" https://github.com/python/cpython "$SRC/cpython"
 fi

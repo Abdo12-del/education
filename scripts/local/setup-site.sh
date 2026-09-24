@@ -18,7 +18,7 @@ export PATH="$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
 cd "$BENCH"
 
 PREVIEW_HOST="${PREVIEW_HOST:-8000-ij2yzae0ypot9ylpkej3n.e2b.app}"
-SITE="$PREVIEW_HOST"
+SITE="${SITE:-school.localhost}"
 DB_PW="${PORTABLE_DB_ROOT_PASSWORD:-root}"
 
 # ---------------------------------------------------------------------------
@@ -49,10 +49,11 @@ if [ ! -d "sites/$SITE" ]; then
 		--admin-password admin
 fi
 
-# Friendly aliases so http://localhost:8000 and school.localhost resolve too.
+# Frappe resolves the site from the request Host header exactly, so register
+# aliases: the Arena preview hostname and plain localhost.
 cd sites
-for alias in localhost school.localhost; do
-	if [ ! -e "$alias" ]; then ln -s "$SITE" "$alias"; fi
+for alias in "$PREVIEW_HOST" "localhost"; do
+	if [ "$alias" != "$SITE" ] && [ ! -e "$alias" ]; then ln -s "$SITE" "$alias"; fi
 done
 cd ..
 

@@ -19,6 +19,7 @@ local-db/*.sock
 local-db/*.pid
 local-db/*.log
 local-db/*.err
+local-db/.credentials-set
 local-db/init.pid
 local-db/mysql57/
 local-db/lib/

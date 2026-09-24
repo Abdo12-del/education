@@ -19,7 +19,7 @@ PY="$DB_DIR/.venv/bin/python"
 [ -x "$PY" ] || { echo "[init-db] db-admin venv missing — run scripts/local/install-core.sh first"; exit 1; }
 
 export LD_LIBRARY_PATH="$DB_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-mkdir -p "$DB_DIR" "$DB_DIR/temp"
+mkdir -p "$DB_DIR" "$DB_DIR/temp" "$DB_DIR/uploads"
 
 # my.cnf is (re)generated on every run so it always matches this machine.
 cat >"$DB_DIR/my.cnf" <<EOF
@@ -52,15 +52,20 @@ disable-log-bin
 explicit_defaults_for_timestamp = 1
 log-bin-trust-function-creators = 1
 max_connect_errors = 1000
+secure-file-priv = ${DB_DIR}/uploads
 EOF
 
 if [ -d "$DATA/mysql" ]; then
 	echo "[init-db] data directory already initialized: $DATA"
-	exit 0
+else
+	echo "[init-db] initializing MySQL 5.7 data directory at $DATA ..."
+	"$DIST/mysqld" --defaults-file="$DB_DIR/my.cnf" --initialize-insecure
 fi
 
-echo "[init-db] initializing MySQL 5.7 data directory at $DATA ..."
-"$DIST/mysqld" --defaults-file="$DB_DIR/my.cnf" --initialize-insecure
+if [ -f "$DB_DIR/.credentials-set" ]; then
+	echo "[init-db] credentials already configured"
+	exit 0
+fi
 
 echo "[init-db] starting a temporary server to set credentials..."
 "$DIST/mysqld" --defaults-file="$DB_DIR/my.cnf" --skip-networking &
@@ -70,8 +75,18 @@ ready=0
 for _ in $(seq 1 60); do
 	if [ -S "$SOCK" ] && "$PY" - "$SOCK" "$ROOT_PW" <<'PY' 2>/dev/null
 import sys, pymysql
-conn = pymysql.connect(unix_socket=sys.argv[1], user="root", password="")
-conn.close()
+sock = sys.argv[1]
+pw = sys.argv[2]
+# first boot: root has an empty password; later boots: already set to pw
+for candidate in ("", pw):
+    try:
+        conn = pymysql.connect(unix_socket=sock, user="root", password=candidate, connect_timeout=3)
+        conn.close()
+        break
+    except Exception:
+        continue
+else:
+    sys.exit(1)
 PY
 	then
 		ready=1
@@ -84,12 +99,21 @@ done
 "$PY" - "$SOCK" "$ROOT_PW" <<'PY'
 import sys, pymysql
 sock, pw = sys.argv[1], sys.argv[2]
-conn = pymysql.connect(unix_socket=sock, user="root", password="")
+conn = None
+for candidate in ("", pw):
+    try:
+        conn = pymysql.connect(unix_socket=sock, user="root", password=candidate, connect_timeout=3)
+        break
+    except Exception:
+        continue
+assert conn is not None, "cannot connect to temporary server"
 with conn.cursor() as c:
     c.execute("ALTER USER 'root'@'localhost' IDENTIFIED BY %s", (pw,))
     for host in ("127.0.0.1", "::1", "%"):
-        c.execute(f"CREATE USER IF NOT EXISTS 'root'@'{host}' IDENTIFIED BY %s", (pw,))
-        c.execute(f"GRANT ALL PRIVILEGES ON *.* TO 'root'@'{host}' WITH GRANT OPTION")
+        # escape % so pymysql's parameter substitution keeps root@'%' intact
+        h = host.replace("%", "%%")
+        c.execute(f"CREATE USER IF NOT EXISTS 'root'@'{h}' IDENTIFIED BY %s", (pw,))
+        c.execute(f"GRANT ALL PRIVILEGES ON *.* TO 'root'@'{h}' WITH GRANT OPTION")
     c.execute("FLUSH PRIVILEGES")
 conn.close()
 PY
@@ -97,4 +121,5 @@ PY
 # graceful shutdown (SIGTERM = clean MySQL shutdown)
 kill -TERM "$TMP_PID" 2>/dev/null || true
 wait "$TMP_PID" 2>/dev/null || true
+touch "$DB_DIR/.credentials-set"
 echo "[init-db] ✓ portable MySQL initialized (root password: ${ROOT_PW})"
