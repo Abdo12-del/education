@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Registers the education app in the bench and creates the demo site:
+#   - site named after the Arena preview host (Frappe matches Host header
+#     exactly), plus alias links for localhost / school.localhost
+#   - installs payments + erpnext + education apps
+#   - builds all assets (desk bundles + portal)
+# Requires: install-core.sh done, start-db.sh running, redis on 6379.
+# Usage: bash scripts/local/setup-site.sh
+# ============================================================================
+set -euo pipefail
+
+log() { echo "[setup-site $(date +%H:%M:%S)] $*"; }
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+BENCH="$HOME/frappe-bench"
+export PATH="$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
+cd "$BENCH"
+
+PREVIEW_HOST="${PREVIEW_HOST:-8000-ij2yzae0ypot9ylpkej3n.e2b.app}"
+SITE="$PREVIEW_HOST"
+DB_PW="${PORTABLE_DB_ROOT_PASSWORD:-root}"
+
+# ---------------------------------------------------------------------------
+# 1. Register the education app (clone of this repository)
+# ---------------------------------------------------------------------------
+if [ ! -d apps/education ]; then
+	log "Adding education app from $ROOT ..."
+	bench get-app education "$ROOT"
+fi
+grep -qx education sites/apps.txt 2>/dev/null || echo education >>sites/apps.txt
+
+# ---------------------------------------------------------------------------
+# 2. Point the bench at the portable database + system redis
+# ---------------------------------------------------------------------------
+bench set-mariadb-host 127.0.0.1
+bench set-redis-cache-host redis://127.0.0.1:6379
+bench set-redis-queue-host redis://127.0.0.1:6379
+bench set-redis-socketio-host redis://127.0.0.1:6379
+
+# ---------------------------------------------------------------------------
+# 3. Create the site (frappe comes in automatically)
+# ---------------------------------------------------------------------------
+if [ ! -d "sites/$SITE" ]; then
+	log "Creating site $SITE ..."
+	bench new-site "$SITE" \
+		--mariadb-root-password "$DB_PW" \
+		--no-mariadb-socket \
+		--admin-password admin
+fi
+
+# Friendly aliases so http://localhost:8000 and school.localhost resolve too.
+cd sites
+for alias in localhost school.localhost; do
+	if [ ! -e "$alias" ]; then ln -s "$SITE" "$alias"; fi
+done
+cd ..
+
+# ---------------------------------------------------------------------------
+# 4. Install the apps on the site
+# ---------------------------------------------------------------------------
+for app in payments erpnext education; do
+	log "Installing $app ..."
+	bench --site "$SITE" install-app "$app"
+done
+
+bench --site "$SITE" set-config developer_mode 1
+bench --site "$SITE" clear-cache
+bench use "$SITE"
+
+# ---------------------------------------------------------------------------
+# 5. Build assets (frappe desk bundles, erpnext, education bundle, portal)
+# ---------------------------------------------------------------------------
+log "Building assets..."
+bench build
+
+log "SITE READY ✓ — start it with: bash scripts/local/start-bench.sh"

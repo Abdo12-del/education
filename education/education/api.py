@@ -8,7 +8,7 @@ import frappe
 from frappe import _
 from frappe.email.doctype.email_group.email_group import add_subscribers
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import cstr, flt, getdate, today
+from frappe.utils import cint, cstr, flt, getdate, today
 from frappe.utils.dateutils import get_dates_from_timegrain
 
 from education.education.doctype.student_batch_name.student_batch_name import (
@@ -738,3 +738,215 @@ def get_student_attendance(student, student_batch):
 		filters={"student": student, "student_batch": student_batch, "docstatus": 1},
 		fields=["date", "status", "name"],
 	)
+
+
+# ---------------------------------------------------------------------------
+# Madrasati school-management APIs (notices, library, transport, KPIs)
+# ---------------------------------------------------------------------------
+
+
+@frappe.whitelist()
+def get_published_notices(limit=50):
+	"""Published school notices visible to the current user's audience."""
+	today_date = today()
+	filters = {
+		"status": "Published",
+		"publish_date": ["<=", today_date],
+	}
+	notices = frappe.get_all(
+		"School Notice",
+		filters=filters,
+		fields=[
+			"name",
+			"title",
+			"notice_type",
+			"priority",
+			"audience",
+			"publish_date",
+			"expiry_date",
+			"content",
+			"attachment",
+		],
+		order_by="priority desc, publish_date desc",
+		limit=cint(limit) or 50,
+	)
+	visible = []
+	for notice in notices:
+		if notice.expiry_date and getdate(notice.expiry_date) < getdate(today_date):
+			continue
+		if notice.audience in ("All", "Students", "Parents"):
+			visible.append(notice)
+	return visible
+
+
+def _get_current_student():
+	"""Resolve the Student record linked to the logged-in user."""
+	user = frappe.session.user
+	return frappe.db.get_value("Student", {"student_email_id": user}, ["name", "student_name"], as_dict=True)
+
+
+@frappe.whitelist()
+def get_my_library():
+	"""Library issues/returns for the logged-in student."""
+	student = _get_current_student()
+	if not student:
+		return {"member": None, "transactions": []}
+
+	member = frappe.db.get_value(
+		"Library Member",
+		{"member_type": "Student", "student": student.name},
+		["name", "member_name", "max_books_allowed", "status"],
+		as_dict=True,
+	)
+	if not member:
+		return {"member": None, "transactions": [], "student": student}
+
+	transactions = frappe.get_all(
+		"Library Transaction",
+		filters={"member": member.name},
+		fields=[
+			"name",
+			"transaction_type",
+			"book",
+			"issue_date",
+			"due_date",
+			"return_date",
+			"fine_amount",
+			"status",
+		],
+		order_by="issue_date desc",
+		limit_page_length=100,
+	)
+	for tx in transactions:
+		tx.book_title = frappe.db.get_value("Library Book", tx.book, "book_title") or tx.book
+		tx.overdue = bool(
+			tx.status == "Issued" and tx.due_date and getdate(tx.due_date) < getdate(today())
+		)
+	return {"member": member, "transactions": transactions, "student": student}
+
+
+@frappe.whitelist()
+def get_my_transport():
+	"""Active transport assignment (route + vehicle) for the logged-in student."""
+	student = _get_current_student()
+	if not student:
+		return None
+	assignment = frappe.db.get_value(
+		"Transport Assignment",
+		{"student": student.name, "status": "Active"},
+		["name", "route", "pickup_point", "monthly_fee", "start_date"],
+		as_dict=True,
+	)
+	if not assignment:
+		return None
+	route = frappe.db.get_value(
+		"Transport Route",
+		assignment.route,
+		["route_name", "vehicle", "monthly_fee"],
+		as_dict=True,
+	)
+	if route:
+		vehicle = frappe.db.get_value(
+			"Transport Vehicle",
+			route.vehicle,
+			["vehicle_number", "driver_name", "driver_phone", "capacity"],
+			as_dict=True,
+		) if route.vehicle else None
+		assignment.vehicle = vehicle
+		assignment.route_name = route.route_name
+	return assignment
+
+
+@frappe.whitelist()
+def get_school_overview():
+	"""Dashboard KPIs for school administrators."""
+	today_date = today()
+	month_start = frappe.utils.get_first_day(today_date)
+
+	def count(doctype, filters=None):
+		try:
+			return frappe.db.count(doctype, filters=filters or {})
+		except Exception:
+			return 0
+
+	overview = {
+		"students": count("Student"),
+		"instructors": count("Instructor"),
+		"programs": count("Program"),
+		"courses": count("Course"),
+		"guardians": count("Guardian"),
+		"notices": count("School Notice", {"status": "Published"}),
+		"library_issued": count("Library Transaction", {"status": "Issued"}),
+		"library_overdue": count(
+			"Library Transaction", {"status": "Issued", "due_date": ["<", today_date]}
+		),
+		"discipline_open": count(
+			"Disciplinary Record", {"status": ["in", ["Open", "Under Review"]]}
+		),
+		"transport_active": count("Transport Assignment", {"status": "Active"}),
+		"hostel_rooms": count("Hostel Room"),
+		"hostel_occupied": count("Hostel Allocation", {"status": "Active"}),
+		"certificates_month": count(
+			"Certificate Issued", {"issue_date": [">=", month_start]}
+		),
+		"admissions_pending": count("Student Applicant", {"status": "Pending"})
+		if frappe.get_meta("Student Applicant").has_field("status")
+		else count("Student Applicant"),
+		"attendance_today": count("Student Attendance", {"date": today_date}),
+	}
+
+	# attendance breakdown for today
+	try:
+		attendance_rows = frappe.get_all(
+			"Student Attendance",
+			filters={"date": today_date},
+			fields=["status"],
+		)
+		overview["attendance_present"] = sum(1 for r in attendance_rows if r.status == "Present")
+		overview["attendance_absent"] = sum(1 for r in attendance_rows if r.status == "Absent")
+	except Exception:
+		overview["attendance_present"] = 0
+		overview["attendance_absent"] = 0
+
+	# fee collection this month (Fees invoice: paid = grand_total - outstanding)
+	fees_meta = frappe.get_meta("Fees")
+	collected, outstanding = 0.0, 0.0
+	if fees_meta.has_field("outstanding_amount") and fees_meta.has_field("grand_total"):
+		row = frappe.db.sql(
+			"""
+			select
+				ifnull(sum(grand_total - outstanding_amount), 0) as collected,
+				ifnull(sum(outstanding_amount), 0) as outstanding
+			from `tabFees`
+			where posting_date >= %s and docstatus = 1
+			""",
+			(month_start,),
+			as_dict=True,
+		)
+		if row:
+			collected, outstanding = flt(row[0].collected), flt(row[0].outstanding)
+	overview["fees_collected_month"] = collected
+	overview["fees_outstanding"] = outstanding
+
+	# recent admissions (last 30 days)
+	try:
+		from frappe.utils import add_days
+
+		overview["recent_admissions"] = frappe.db.count(
+			"Student", {"creation": [">=", add_days(today_date, -30)]}
+		)
+	except Exception:
+		overview["recent_admissions"] = 0
+
+	# top list widgets for the dashboard page
+	overview["recent_notices"] = (get_published_notices(limit=5) or [])[:5]
+	overview["overdue_books"] = frappe.get_all(
+		"Library Transaction",
+		filters={"status": "Issued", "due_date": ["<", today_date]},
+		fields=["name", "book", "member", "due_date"],
+		order_by="due_date asc",
+		limit_page_length=5,
+	)
+	for row in overview["overdue_books"]:
+		row.book_title = frappe.db.get_value("Library Book", row.book, "book_title") or row.book
+	return overview

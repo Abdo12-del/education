@@ -1,0 +1,7 @@
+LIBAIO_0.1 {
+	global: io_submit;
+	local: *;
+};
+LIBAIO_0.4 {
+	global: io_setup; io_getevents; io_destroy; io_cancel; io_pgetevents;
+} LIBAIO_0.1;

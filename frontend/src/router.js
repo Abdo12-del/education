@@ -26,6 +26,16 @@ const routes = [
     component: () => import('@/pages/Attendance.vue'),
   },
   {
+    path: '/notices',
+    name: 'Notices',
+    component: () => import('@/pages/Notices.vue'),
+  },
+  {
+    path: '/library',
+    name: 'Library',
+    component: () => import('@/pages/Library.vue'),
+  },
+  {
     path: '/:catchAll(.*)',
     redirect: '/schedule',
   },

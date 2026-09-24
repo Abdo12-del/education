@@ -13,3 +13,15 @@ education/www/student-portal.html
 ./node_modules
 .vscode
 docs/
+# Portable local database (generated data lives with the project)
+local-db/data/
+local-db/*.sock
+local-db/*.pid
+local-db/*.log
+local-db/*.err
+local-db/init.pid
+local-db/mysql57/
+local-db/lib/
+local-db/.venv/
+local-db/temp/
+local-db/my.cnf

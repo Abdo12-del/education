@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "allow_rename": 0,
+ "creation": "2026-09-24 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "stop_name",
+  "stop_address",
+  "sequence",
+  "pickup_time",
+  "drop_time"
+ ],
+ "fields": [
+  {
+   "fieldname": "stop_name",
+   "fieldtype": "Data",
+   "label": "Stop Name",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "stop_address",
+   "fieldtype": "Data",
+   "label": "Stop Address"
+  },
+  {
+   "fieldname": "sequence",
+   "fieldtype": "Int",
+   "label": "Sequence"
+  },
+  {
+   "fieldname": "pickup_time",
+   "fieldtype": "Time",
+   "label": "Pickup Time"
+  },
+  {
+   "fieldname": "drop_time",
+   "fieldtype": "Time",
+   "label": "Drop Time"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-24 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Education",
+ "name": "Transport Route Stop",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "istable": 1,
+ "editable_grid": 1,
+ "grid_page_length": 50,
+ "row_format": "Dynamic",
+ "index_web_pages_for_search": 0,
+ "rows_threshold_for_grid_search": 20
+}

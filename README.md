@@ -1,17 +1,17 @@
 <div align="center" markdown="1">
 
-<img src=".github/edu-logo.svg" alt="Frappe Education Logo" width="80">
+<img src=".github/edu-logo.svg" alt="Madrasati Logo" width="80">
 
-<h1>Frappe Education</h1>
+<h1>Madrasati · مدرستي</h1>
 
-**Empowering Schools with Smarter Management**
+**Empowering Schools with Smarter Management — منصة إدارة المدرسة الذكية**
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/frappe/education)
 
 </div>
 
 <div align="center">
-	<img width="1552" alt="Screenshot 2025-01-01 at 6 24 15 PM" src="https://github.com/user-attachments/assets/46af048c-749f-41f7-8d10-47e4fa643592" width="100%" />
+	<img width="1552" alt="Screenshot 2025-01-01 6 24 15 PM" src="https://github.com/user-attachments/assets/46af048c-749f-41f7-8d10-47e4fa643592" width="100%" />
 
 </div>
 <br />
@@ -21,35 +21,56 @@
 	<a href="https://docs.frappe.io/education">Documentation</a>
 </div>
 
-## Frappe Education
+## About Madrasati
 
-Frappe Education is an open-source and user-friendly Education Management System
-designed to streamline the administrative and academic processes of educational
-institutions. It is a powerful module based on the ERPNext software.
-
-### Motivation
-
-All the tools to manage which are available in the market were just not good
-enough.They were way too scatered, or too expensive or too complex to use. We
-wanted to create a tool that is easy to use, affordable and can be customized as
-per the needs of the institution. Frappe Education is dedicated to making
-education management more efficient and less time-consuming.
+**Madrasati (مدرستي)** is an open-source, user-friendly Education Management
+System designed to streamline the administrative and academic processes of
+educational institutions. It is a powerful module based on the Frappe framework
+and ERPNext — a hardened fork of *Frappe Education* with a new identity and a
+much richer school-operations feature set.
 
 ### Key Features
 
-- **Student & Teacher Management** - Manage student and teacher profiles,
+- **Student & Teacher Management** — Manage student and teacher profiles,
   attendance.
-
-- **Admission Management** - Streamline the admission process for new students.
-
-- **Fee Management** - Organize and manage the fee structure and schedule
+- **Admission Management** — Streamline the admission process for new students.
+- **Fee Management** — Organize and manage the fee structure and schedule
   payments.
-
-- **Course Scheduling & Exam Planning** - Efficiently schedule courses and
+- **Course Scheduling & Exam Planning** — Efficiently schedule courses and
   manage course calendars.
-
-- **Student Portal** - Students can visit the portal to check their timetable,
+- **Student Portal** — Students can visit the portal to check their timetable,
   attendance, pay fees online, and see current and previous grades.
+
+### New in Madrasati 🆕
+
+- **📖 Library Management** — Books catalogue with live copy tracking,
+  issue/return transactions, automatic due dates and late fines, an
+  *Library Overdue Report*, plus a *My Library* page in the student portal.
+- **🚌 School Transport** — Vehicles, routes with ordered stops and pickup
+  times, per-student assignments with monthly fees (one active assignment per
+  student is enforced).
+- **🏠 Hostel / Dormitories** — Rooms with capacity & occupancy tracking and
+  student allocations (full/available status maintained automatically).
+- **⚖️ Discipline & Conduct** — Incident records with severity, actions
+  (warning → suspension), parent notification flags, follow-ups and a
+  *Disciplinary Action Report*.
+- **📣 Notice Board** — Publish dated notices by audience (students, parents,
+  teachers) with priorities; visible in the student portal under *Notices*.
+- **🎓 Certificates & Documents** — Issue numbered certificates (transfer,
+  character, enrollment, transcript, fee clearance) with full register.
+- **🗓️ Timetable Entries** — Day-wise period scheduling with automatic
+  clash detection for rooms and instructors.
+- **📊 Madrasati Dashboard** — A dedicated desk page with live KPIs: fees
+  collected vs outstanding, attendance today, library overdue, discipline
+  cases, hostel occupancy, transport users, recent admissions and more.
+- **⚙️ Education Settings** — New library controls: loan duration (days) and
+  fine per day.
+
+### Identity
+
+This fork ships under the name **Madrasati (مدرستي)** with a new logo, while
+staying 100% compatible with the Frappe Education app (`education`) and
+crediting the original work below.
 
 <details open>
 <summary >View Screenshots</summary>
@@ -60,7 +81,7 @@ education management more efficient and less time-consuming.
 	</sub>
 </div>
 
-<img width="1300" alt="Screenshot 2025-01-01 at 6 09 34 PM" src="https://github.com/user-attachments/assets/78263a31-eb9f-45f0-a7a4-486f75c2b774" />
+<img width="1300" alt="Screenshot 2025-01-01 6 09 34 PM" src="https://github.com/user-attachments/assets/78263a31-eb9f-45f0-a7a4-486f75c2b774" />
 
 <div align="center">
 	<sub>
@@ -68,7 +89,7 @@ education management more efficient and less time-consuming.
 	</sub>
 </div>
 
-<img width="1300" alt="Screenshot 2025-01-01 at 6 12 40 PM" src="https://github.com/user-attachments/assets/7dcf7e7b-a003-4520-a41e-84ca553e7f0d" />
+<img width="1300" alt="Screenshot 2025-01-01 6 12 40 PM" src="https://github.com/user-attachments/assets/7dcf7e7b-a003-4520-a41e-84ca553e7f0d" />
 
 <div align="center">
 	<sub>
@@ -76,7 +97,7 @@ education management more efficient and less time-consuming.
 	</sub>
 </div>
 
-<img width="1300" alt="Screenshot 2025-01-01 at 6 19 49 PM" src="https://github.com/user-attachments/assets/19106f12-c278-48f9-8be3-47db5ce3a5f3" />
+<img width="1300" alt="Screenshot 2025-01-01 6 19 49 PM" src="https://github.com/user-attachments/assets/19106f12-c278-48f9-8be3-47db5ce3a5f3" />
 
 <div align="center">
 	<sub>
@@ -84,7 +105,7 @@ education management more efficient and less time-consuming.
 	</sub>
 </div>
 
-<img width="1300" alt="Screenshot 2025-01-01 at 6 16 27 PM" src="https://github.com/user-attachments/assets/0640c623-bc81-4308-a15d-53a5977d5011" />
+<img width="1300" alt="Screenshot 2025-01-01 6 16 27 PM" src="https://github.com/user-attachments/assets/0640c623-bc81-4308-a15d-53a5977d5011" />
 
 </details>
 <br>
@@ -93,13 +114,42 @@ education management more efficient and less time-consuming.
 
 - [**Frappe Framework**](https://github.com/frappe/frappe): A full-stack web
   application framework written in Python and Javascript.
-
 - [**ERPNext**](https://github.com/frappe/erpnext) - An open-source, modern ERP
   system that includes modules for accounting, inventory, manufacturing, and
   more.
-
 - [**Frappe UI**](https://github.com/frappe/frappe-ui): A Vue-based UI library,
   to provide a modern user interface.
+
+## Run locally with the portable MySQL database 🗄️
+
+Everything runs **on your machine** with a **portable MySQL server that lives
+inside this repository** (`local-db/`) — copy the folder and your data travels
+with it. The helper scripts fetch every dependency from GitHub / PyPI / npm, so
+they also work behind restrictive networks.
+
+```bash
+# 1) One-shot toolchain: Node 24, Python 3.14, Redis, MySQL 5.7 binaries,
+#    pkg-config, frappe-bench + frappe/erpnext/payments apps
+bash scripts/local/install-core.sh
+
+# 2) Start the portable database (creates local-db/data on first run,
+#    root password "root", listens on 127.0.0.1:3306)
+bash scripts/local/start-db.sh          # keep it running (or run in background)
+
+# 3) Create the site (named after your preview host + localhost aliases),
+#    install payments + erpnext + education and build all assets
+bash scripts/local/setup-site.sh
+
+# 4) Start the app on http://localhost:8000
+bash scripts/local/start-bench.sh
+```
+
+Notes:
+
+- Redis must be running on `127.0.0.1:6379` (any `redis-server` works).
+- Login: `Administrator` / `admin`.
+- Student portal: `/student-portal` · Madrasati dashboard: `/app/school_dashboard`.
+- Data files are ignored by git (`local-db/data/`) — commit only scripts.
 
 ## Production Setup
 
@@ -122,36 +172,6 @@ with an ability to manage and control multiple Frappe deployments.
 	</a>
 </div>
 
-### Self Hosting
-
-Follow these steps to set up Frappe Education in production:
-
-**Step 1**: Download the easy install script
-
-```bash
-wget https://frappe.io/easy-install.py
-```
-
-**Step 2**: Run the deployment command
-
-```bash
-python3 ./easy-install.py deploy \
-    --project=education_prod_setup \
-    --email=your_email.example.com \
-    --image=ghcr.io/frappe/education \
-    --version=stable \
-    --app=education \
-    --sitename subdomain.domain.tld
-```
-
-Replace the following parameters with your values:
-
-- `your_email.example.com`: Your email address
-- `subdomain.domain.tld`: Your domain name where Education will be hosted
-
-The script will set up a production-ready instance of Frappe Education with all
-the necessary configurations in about 5 minutes.
-
 ## Development Setup
 
 ### Local
@@ -161,7 +181,6 @@ the necessary configurations in about 5 minutes.
 1. Install ERPNext by running `bench get-app erpnext`
 1. Once ERPNext is installed, install the Education App by using
    `bench get-app education`
-
 1. In a separate terminal window, create a new site by running
    `bench new-site education.test`
 1. Map your site to localhost with the command
@@ -175,6 +194,11 @@ the necessary configurations in about 5 minutes.
 1. To access student portal, open the URL
    `http://education.test:8000/student-portal` in your browser, you should see
    the student portal running.
+
+### Portable scripts (this repo)
+
+See **Run locally** above — `scripts/local/*.sh` handles toolchain, database,
+site and assets for restricted environments.
 
 ### Docker
 
@@ -219,13 +243,10 @@ be available. The default credentials are:
 - [Discuss Forum](https://discuss.frappe.io/c/erpnext/schools-college-education/40)
 - [Documentation](https://docs.frappe.io/education) |
 
-<br>
-<br>
-<div align="center">
-	<a href="https://frappe.io" target="_blank">
-		<picture>
-			<source media="(prefers-color-scheme: dark)" srcset="https://frappe.io/files/Frappe-white.png">
-			<img src="https://frappe.io/files/Frappe-black.png" alt="Frappe Technologies" height="28"/>
-		</picture>
-	</a>
-</div>
+## Credits
+
+Originally built by
+[Frappe Technologies](https://github.com/frappe/education) as
+**Frappe Education** (GNU GPL v3). Madrasati keeps the same license, code base
+and community links, with an updated identity and extended school-management
+features.

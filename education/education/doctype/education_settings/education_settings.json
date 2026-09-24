@@ -26,7 +26,10 @@
   "razorpay_secret",
   "column_break_atxc",
   "school_college_name_abbreviation",
-  "school_college_logo"
+  "school_college_logo",
+  "library_section",
+  "library_loan_days",
+  "library_fine_per_day"
  ],
  "fields": [
   {
@@ -159,11 +162,28 @@
    "fieldname": "sales_order_transaction_date_fee_schedule",
    "fieldtype": "Check",
    "label": "Sales Order Posting Date should be same as Fee Schedule Posting Date"
+  },
+  {
+   "fieldname": "library_section",
+   "fieldtype": "Section Break",
+   "label": "Library"
+  },
+  {
+   "fieldname": "library_loan_days",
+   "fieldtype": "Int",
+   "label": "Library Loan Days",
+   "default": "14"
+  },
+  {
+   "fieldname": "library_fine_per_day",
+   "fieldtype": "Currency",
+   "label": "Library Fine Per Day",
+   "default": "5"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-13 22:29:02.104770",
+ "modified": "2026-09-24 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Education",
  "name": "Education Settings",
