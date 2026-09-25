@@ -290,6 +290,13 @@ if [ ! -d "$BENCH/apps/frappe" ]; then
 fi
 cd "$BENCH"
 
+# The bench apps/ tree is a SEPARATE clone (bench init re-fetches) -> apply the
+# MySQL 5.7 patches to it as well, after it exists.
+if [ -d "$BENCH/apps/frappe/.git" ]; then
+	FRAPPE_SRC="$BENCH/apps/frappe" ERPNEXT_SRC="$BENCH/apps/erpnext" \
+		bash "$REPO/scripts/local/patch-frappe-mysql57.sh"
+fi
+
 # Upstream develop added mysqlclient (sdist-only; needs libmysqlclient headers we
 # cannot fetch). We run frappe on PyMySQL -- strip the pin and repair the install
 # if bench init died inside its app-install step.
@@ -322,6 +329,7 @@ sed -i \
 	-e 's/^watch:/# watch:/' \
 	-e 's/^schedule:/# schedule:/' \
 	-e 's/^socketio:/# socketio:/' \
+	-e 's#bench serve  --port 8000#bench serve --host 0.0.0.0 --port 8000#' \
 	-e 's/^redis_socketio:/# redis_socketio:/' \
 	-e 's/^redis_cache:/# redis_cache:/' \
 	-e 's/^redis_queue:/# redis_queue:/' \
