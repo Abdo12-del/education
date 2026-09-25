@@ -120,12 +120,32 @@ crediting the original work below.
 - [**Frappe UI**](https://github.com/frappe/frappe-ui): A Vue-based UI library,
   to provide a modern user interface.
 
-## Run locally with the portable MySQL database 🗄️
+## 🖥️ Desktop app — standalone, no Docker
 
-Everything runs **on your machine** with a **portable MySQL server that lives
-inside this repository** (`local-db/`) — copy the folder and your data travels
-with it. The helper scripts fetch every dependency from GitHub / PyPI / npm, so
-they also work behind restrictive networks.
+Madrasati runs as a **regular program on your computer**. No Docker, no
+containers, no cloud: one launcher brings up everything — a **portable MySQL
+server stored inside this repository** (`local-db/`), Redis, the app server —
+and opens the app window:
+
+```bash
+./Madrasati          # first run: installs everything, then starts + opens the app
+./Madrasati status   # what is running?
+./Madrasati stop     # stop all services
+./Madrasati start    # start in the background and open the window
+./Madrasati run      # start in the foreground (Ctrl+C to stop)
+```
+
+There is also a desktop-menu entry: install `madrasati.desktop`
+(copy it to `~/.local/share/applications/`) to launch Madrasati like any other
+installed application.
+
+<details>
+<summary>Manual / advanced start (same components, step by step)</summary>
+
+Everything below is what `./Madrasati` runs for you. The helper scripts fetch
+every dependency from GitHub / PyPI / npm, so they also work behind restrictive
+networks. All data lives in `local-db/` — copy the folder and your data
+travels with it.
 
 ```bash
 # 1) One-shot toolchain: Node 24, Python 3.14, Redis, MySQL 5.7 binaries,
@@ -136,20 +156,24 @@ bash scripts/local/install-core.sh
 #    root password "root", listens on 127.0.0.1:3306)
 bash scripts/local/start-db.sh          # keep it running (or run in background)
 
-# 3) Create the site (named after your preview host + localhost aliases),
-#    install payments + erpnext + education and build all assets
+# 3) Create the demo site, install payments + erpnext + education, build assets
 bash scripts/local/setup-site.sh
 
 # 4) Start the app on http://localhost:8000
 bash scripts/local/start-bench.sh
 ```
 
+</details>
+
 Notes:
 
-- Redis must be running on `127.0.0.1:6379` (any `redis-server` works).
+- Redis runs on `127.0.0.1:6379` (started by the launcher).
 - Login: `Administrator` / `admin`.
 - Student portal: `/student-portal` · Madrasati dashboard: `/app/school_dashboard`.
 - Data files are ignored by git (`local-db/data/`) — commit only scripts.
+- Linux x86_64 is the supported desktop platform (the bundled portable MySQL
+  build targets it).
+
 
 ## Production Setup
 
@@ -194,39 +218,6 @@ with an ability to manage and control multiple Frappe deployments.
 1. To access student portal, open the URL
    `http://education.test:8000/student-portal` in your browser, you should see
    the student portal running.
-
-### Portable scripts (this repo)
-
-See **Run locally** above — `scripts/local/*.sh` handles toolchain, database,
-site and assets for restricted environments.
-
-### Docker
-
-You need Docker, docker-compose and git setup on your machine. Refer
-[Docker documentation](https://docs.docker.com/). After that, follow below
-steps:
-
-**Step 1**: Setup folder and download the required files
-
-    mkdir frappe-education
-    cd frappe-education
-
-    # Download the docker-compose file
-    wget -O docker-compose.yml https://raw.githubusercontent.com/frappe/education/develop/docker/docker-compose.yml
-
-    # Download the setup script
-    wget -O init.sh https://raw.githubusercontent.com/frappe/education/develop/docker/init.sh
-
-**Step 2**: Run the container and daemonize it
-
-    docker compose up -d
-
-**Step 3**: The site
-[http://education.localhost:8000/](http://education.localhost:8000) should now
-be available. The default credentials are:
-
-- Username: Administrator
-- Password: admin
 
 ## Compatibility matrix
 

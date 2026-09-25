@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Madrasati
+Name[ar]=مدرستي
+GenericName=School Management
+Comment=Madrasati school management system — standalone, no Docker
+Comment[ar]=نظام إدارة المدرسة مدرستي — مستقل بدون Docker
+Exec=/home/user/education/Madrasati start
+Icon=/home/user/education/education/public/favicon.png
+Terminal=false
+Categories=Education;Office;Database;
+StartupNotify=true

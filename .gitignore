@@ -26,3 +26,5 @@ local-db/lib/
 local-db/.venv/
 local-db/temp/
 local-db/my.cnf
+local-db/run/
+local-db/logs/

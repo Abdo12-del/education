@@ -144,6 +144,77 @@ if [ ! -x "$REPO/local-db/.venv/bin/python" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 3b. Helper shims (lost with ~/.local on environment resets — recreate here)
+# ---------------------------------------------------------------------------
+# crontab: bench init writes a backup schedule; python-crontab needs the binary.
+if [ ! -x "$LOCAL/bin/crontab" ]; then
+	cat > "$LOCAL/bin/crontab" <<'CRON'
+#!/bin/sh
+# Minimal crontab shim for bench (no cron daemon in this sandbox).
+case "${1:-}" in
+	-l) cat "$HOME/.crontab.shim" 2>/dev/null || true; exit 0 ;;
+	-r) : > "$HOME/.crontab.shim" 2>/dev/null || true; exit 0 ;;
+	*)  cat >> "$HOME/.crontab.shim" 2>/dev/null || true; exit 0 ;;
+esac
+CRON
+	chmod +x "$LOCAL/bin/crontab"
+fi
+# python-crontab hardcodes /usr/bin/crontab
+if [ ! -x /usr/bin/crontab ]; then
+	sudo cp "$LOCAL/bin/crontab" /usr/bin/crontab 2>/dev/null || true
+fi
+
+# mariadb/mysql CLI shim: frappe restores the framework SQL through this client;
+# the portable npm dist ships only mysqld, so we emulate the CLI via PyMySQL.
+if [ ! -x "$LOCAL/bin/mariadb" ]; then
+	cat > "$LOCAL/bin/mariadb" <<'MARIADB'
+#!/usr/bin/env python3
+"""Minimal mariadb/mysql CLI shim for the portable DB (frappe restore path)."""
+import os, sys
+
+def main():
+    user, password, host, port, sock, db = "root", "", "127.0.0.1", 3306, None, None
+    for arg in sys.argv[1:]:
+        if arg.startswith("--user="): user = arg.split("=", 1)[1]
+        elif arg.startswith("--password="): password = arg.split("=", 1)[1]
+        elif arg.startswith("--host="): host = arg.split("=", 1)[1]
+        elif arg.startswith("--port="): port = int(arg.split("=", 1)[1])
+        elif arg.startswith("--socket="): sock = arg.split("=", 1)[1]
+        elif arg.startswith("-"): continue
+        else: db = arg
+    sql = sys.stdin.buffer.read()
+    if not sql:
+        return 0
+    import pymysql
+    from pymysql.constants import CLIENT
+    conn = pymysql.connect(user=user, password=password,
+                           host=None if sock else host, port=port, unix_socket=sock,
+                           database=db, client_flag=CLIENT.MULTI_STATEMENTS,
+                           local_infile=True)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql.decode("utf-8", errors="replace"))
+            while cur.nextset():
+                pass
+        conn.commit()
+    finally:
+        conn.close()
+    return 0
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception as exc:
+        sys.stderr.write(f"mariadb-shim: {exc}\n")
+        sys.exit(1)
+MARIADB
+	chmod +x "$LOCAL/bin/mariadb"
+	# point the shim at the db-admin venv (has pymysql) instead of system python
+	sed -i "1s|.*|#!$REPO/local-db/.venv/bin/python|" "$LOCAL/bin/mariadb"
+	ln -sf "$LOCAL/bin/mariadb" "$LOCAL/bin/mysql"
+fi
+
+# ---------------------------------------------------------------------------
 # 4. Redis built from source (no apt in this environment)
 # ---------------------------------------------------------------------------
 if [ ! -x "$LOCAL/bin/redis-server" ]; then
@@ -173,6 +244,14 @@ clone() { # clone <url> <dest> <branch>
 clone https://github.com/frappe/frappe "$SRC/frappe" develop
 clone https://github.com/frappe/erpnext "$SRC/erpnext" develop
 clone https://github.com/frappe/payments "$SRC/payments" develop
+
+# MySQL 5.7 compatibility patches (must land before bench init clones frappe)
+bash "$REPO/scripts/local/patch-frappe-mysql57.sh"
+
+# yarn should resolve new packages from registry.npmjs.org (yarnpkg.com blocked)
+if command -v yarn >/dev/null 2>&1; then
+	yarn config set registry https://registry.npmjs.org/ >/dev/null 2>&1 || true
+fi
 
 # ---------------------------------------------------------------------------
 # 6. bench init

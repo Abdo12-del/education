@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Madrasati · مدرستي — standalone desktop launcher (no Docker, no containers)
+#
+# One program that brings up the whole school-management system on this
+# computer: portable MySQL (local-db/), Redis, the Frappe bench server, and
+# then opens the app window in the browser.
+#
+#   ./Madrasati            install (first run) + run + open window
+#   ./Madrasati install    bootstrap the toolchain + demo site only
+#   ./Madrasati start      start everything in the background + open window
+#   ./Madrasati run        start everything in the foreground (Ctrl+C stops)
+#   ./Madrasati stop       stop bench, redis and the portable database
+#   ./Madrasati status     show what is running
+#
+# Everything lives inside this repository: tools in ~/.local, data in
+# local-db/ (portable, movable with the folder). Nothing depends on Docker.
+# ============================================================================
+set -u
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUN_DIR="$REPO/local-db/run"
+LOG_DIR="$REPO/local-db/logs"
+SITE="${SITE:-school.localhost}"
+PREVIEW_HOST="${PREVIEW_HOST:-8000-ij2yzae0ypot9ylpkej3n.e2b.app}"
+export PATH="$REPO/local-db/.venv/bin:$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
+export FRAPPE_PRELOAD_DATABASE_DRIVERS=none
+
+c_ok=$'\033[32m'; c_bad=$'\033[31m'; c_info=$'\033[36m'; c_off=$'\033[0m'
+log() { echo -e "${c_info}[Madrasati]${c_off} $*"; }
+die() { echo -e "${c_bad}[Madrasati]${c_off} $*" >&2; exit 1; }
+
+port_up() {  # port_up <port>
+	python3 - "$1" <<'PY' 2>/dev/null
+import socket, sys
+s = socket.socket(); s.settimeout(1.5)
+try:
+    s.connect(("127.0.0.1", int(sys.argv[1]))); sys.exit(0)
+except Exception:
+    sys.exit(1)
+finally:
+    s.close()
+PY
+}
+
+ensure_installed() {
+	if [ ! -x "$HOME/.local/python314/bin/python3.14" ] || [ ! -d "$HOME/frappe-bench/apps/frappe" ]; then
+		log "First run — installing the local toolchain (this takes a while, no Docker needed)..."
+		bash "$REPO/scripts/local/install-core.sh" || die "install-core failed (see /tmp/install-core*.log)"
+	fi
+}
+
+ensure_site() {
+	if [ ! -d "$HOME/frappe-bench/sites/$SITE" ]; then
+		log "Creating the demo site \"$SITE\"..."
+		bash "$REPO/scripts/local/setup-site.sh" || die "setup-site failed (see /tmp/setup-site.log)"
+	fi
+}
+
+start_mysql() {
+	if port_up 3306; then return 0; fi
+	log "Starting portable MySQL 5.7 (local-db/)..."
+	mkdir -p "$RUN_DIR" "$LOG_DIR"
+	nohup bash "$REPO/scripts/local/start-db.sh" >"$LOG_DIR/mysql.log" 2>&1 &
+	echo $! >"$RUN_DIR/mysql.pid"
+	for _ in $(seq 1 40); do port_up 3306 && return 0; sleep 1; done
+	die "portable MySQL did not come up (see local-db/logs/mysql.log)"
+}
+
+start_redis() {
+	if port_up 6379; then return 0; fi
+	log "Starting Redis cache..."
+	mkdir -p "$RUN_DIR" "$LOG_DIR"
+	nohup "$HOME/.local/bin/redis-server" --port 6379 --save '' --appendonly no \
+		>"$LOG_DIR/redis.log" 2>&1 &
+	echo $! >"$RUN_DIR/redis.pid"
+	for _ in $(seq 1 15); do port_up 6379 && return 0; sleep 1; done
+	die "redis did not come up (see local-db/logs/redis.log)"
+}
+
+start_bench_fg() {
+	log "Starting the Madrasati server on http://localhost:8000 ..."
+	cd "$HOME/frappe-bench"
+	# strip watch/schedule/socketio entries if a previous run restored them
+	sed -i -e 's/^watch:/# watch:/' -e 's/^schedule:/# schedule:/' \
+		-e 's/^socketio:/# socketio:/' -e 's/^redis_socketio:/# redis_socketio:/' \
+		-e 's/^redis_cache:/# redis_cache:/' -e 's/^redis_queue:/# redis_queue:/' Procfile || true
+	exec bench start
+}
+
+start_bench_bg() {
+	if port_up 8000; then return 0; fi
+	log "Starting the Madrasati server (background)..."
+	mkdir -p "$RUN_DIR" "$LOG_DIR"
+	cd "$HOME/frappe-bench"
+	sed -i -e 's/^watch:/# watch:/' -e 's/^schedule:/# schedule:/' \
+		-e 's/^socketio:/# socketio:/' -e 's/^redis_socketio:/# redis_socketio:/' \
+		-e 's/^redis_cache:/# redis_cache:/' -e 's/^redis_queue:/# redis_queue:/' Procfile || true
+	nohup bench start >"$LOG_DIR/bench.log" 2>&1 &
+	echo $! >"$RUN_DIR/bench.pid"
+	for _ in $(seq 1 45); do port_up 8000 && return 0; sleep 1; done
+	die "server did not come up (see local-db/logs/bench.log)"
+}
+
+open_window() {
+	local url="http://localhost:8000/$SITE"   # site picked via path when Host is localhost
+	local alt="http://$PREVIEW_HOST/"
+	# Prefer an app-style window (no browser chrome) when Chromium is around.
+	for bin in chromium chromium-browser google-chrome google-chrome-stable; do
+		if command -v "$bin" >/dev/null 2>&1; then
+			log "Opening app window ($bin)..."
+			nohup "$bin" --app="http://localhost:8000" --user-data-dir="$HOME/.local/madrasati-window" \
+				>"$LOG_DIR/window.log" 2>&1 &
+			return 0
+		fi
+	done
+	if command -v xdg-open >/dev/null 2>&1; then
+		log "Opening $url in your browser..."
+		xdg-open "$url" >/dev/null 2>&1 || true
+	elif command -v open >/dev/null 2>&1; then
+		open "$url" >/dev/null 2>&1 || true
+	else
+		log "Open manually: $url  (preview: $alt)"
+	fi
+}
+
+cmd_status() {
+	echo -e "Madrasati · مدرستي — status"
+	port_up 3306 && echo -e "  database (portable MySQL)  ${c_ok}running${c_off}" \
+	             || echo -e "  database                   ${c_bad}stopped${c_off}"
+	port_up 6379 && echo -e "  redis cache                ${c_ok}running${c_off}" \
+	             || echo -e "  redis cache                ${c_bad}stopped${c_off}"
+	port_up 8000 && echo -e "  app server (port 8000)     ${c_ok}running${c_off}" \
+	             || echo -e "  app server                 ${c_bad}stopped${c_off}"
+	[ -d "$HOME/frappe-bench/sites/$SITE" ] && echo -e "  demo site                  ${c_ok}$SITE${c_off}" \
+	                                         || echo -e "  demo site                  ${c_bad}not created${c_off}"
+}
+
+cmd_stop() {
+	log "Stopping..."
+	[ -f "$RUN_DIR/bench.pid" ] && kill "$(cat "$RUN_DIR/bench.pid")" 2>/dev/null
+	pkill -f "frappe-bench/env" 2>/dev/null || true
+	pkill -f "bench start" 2>/dev/null || true
+	[ -f "$RUN_DIR/redis.pid" ] && kill "$(cat "$RUN_DIR/redis.pid")" 2>/dev/null
+	pkill -x redis-server 2>/dev/null || true
+	[ -f "$RUN_DIR/mysql.pid" ] && kill "$(cat "$RUN_DIR/mysql.pid")" 2>/dev/null
+	pkill -x mysqld 2>/dev/null || true
+	rm -f "$RUN_DIR"/*.pid
+	sleep 2
+	cmd_status
+}
+
+cmd="${1:-run}"
+case "$cmd" in
+	install)
+		ensure_installed
+		ensure_site
+		log "Installed ✓ — run ./Madrasati to launch."
+		;;
+	start)
+		ensure_installed
+		ensure_site
+		start_mysql
+		start_redis
+		start_bench_bg
+		open_window
+		cmd_status
+		;;
+	run)
+		ensure_installed
+		ensure_site
+		start_mysql
+		start_redis
+		open_window
+		start_bench_fg
+		;;
+	stop)  cmd_stop ;;
+	status) cmd_status ;;
+	*) die "unknown command: $cmd (use: start|run|stop|status|install)" ;;
+esac
