@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+SRC="${SRC:-$HOME/src}"   # clone root (overridable by caller)
 # ============================================================================
 # Applies the MySQL 5.7 compatibility patches to the local frappe/erpnext
 # clones used by bench (Frappe officially targets MariaDB >= 10.6; we run the

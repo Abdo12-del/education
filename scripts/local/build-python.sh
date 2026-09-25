@@ -59,10 +59,13 @@ PREFIX_FFI="$HOME/.local/ffi"
 if [ ! -f "$PREFIX_FFI/lib/pkgconfig/libffi.pc" ]; then
 	log "Building libffi (for _ctypes)..."
 	rm -rf "$SRC/libffi-npm" && mkdir -p "$SRC/libffi-npm"
-	TGZ_URL=$(curl -s https://registry.npmjs.org/libffi | python3 -c "
-import json, sys
-v = json.load(sys.stdin)["dist-tags"]["latest"]
-print(f'https://registry.npmjs.org/libffi/-/libffi-{v}.tgz')")
+	curl -s https://registry.npmjs.org/libffi -o /tmp/libffi-meta.json
+	TGZ_URL=$(python3 - <<'PY'
+import json
+v = json.load(open("/tmp/libffi-meta.json"))["dist-tags"]["latest"]
+print(f"https://registry.npmjs.org/libffi/-/libffi-{v}.tgz")
+PY
+	)
 	curl -fsSL "$TGZ_URL" -o /tmp/libffi.tgz
 	tar -xzf /tmp/libffi.tgz -C "$SRC/libffi-npm" 2>/dev/null || tar -xzf /tmp/libffi.tgz -C "$SRC/libffi-npm"
 	rm -f /tmp/libffi.tgz
@@ -93,16 +96,16 @@ if [ ! -f "$PREFIX_SQLITE/lib/pkgconfig/sqlite3.pc" ]; then
 	ar rcs libsqlite3.a sqlite3.o
 	cp sqlite3.h sqlite3ext.h "$PREFIX_SQLITE/include/"
 	cp libsqlite3.a "$PREFIX_SQLITE/lib/"
-	cat > "$PREFIX_SQLITE/lib/pkgconfig/sqlite3.pc" <<'PC'
-prefix=$HOME/.local/sqlite3
-libdir=${prefix}/lib
-includedir=${prefix}/include
+	cat > "$PREFIX_SQLITE/lib/pkgconfig/sqlite3.pc" <<PC
+prefix=$PREFIX_SQLITE
+libdir=\${prefix}/lib
+includedir=\${prefix}/include
 
 Name: SQLite
 Description: SQL database engine
 Version: 3.50.0
-Libs: -L${libdir} -lsqlite3 -lm -lpthread
-Cflags: -I${includedir}
+Libs: -L\${libdir} -lsqlite3 -lm -lpthread
+Cflags: -I\${includedir}
 PC
 	cd "$SRC/cpython" 2>/dev/null || cd "$SRC"
 fi

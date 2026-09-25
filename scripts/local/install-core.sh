@@ -264,6 +264,21 @@ if [ ! -d "$BENCH/apps/frappe" ]; then
 fi
 cd "$BENCH"
 
+# Upstream develop added mysqlclient (sdist-only; needs libmysqlclient headers we
+# cannot fetch). We run frappe on PyMySQL -- strip the pin and repair the install
+# if bench init died inside its app-install step.
+for pt in "$BENCH/apps"/*/pyproject.toml; do
+	if [ -f "$pt" ] && grep -q '"mysqlclient==' "$pt"; then
+		sed -i '/"mysqlclient==/d' "$pt"
+		log "stripped mysqlclient pin from $pt"
+	fi
+done
+if ! "$BENCH/env/bin/python" -c "import frappe" >/dev/null 2>&1; then
+	log "repairing frappe install into bench env (uv pip -e apps/frappe)..."
+	"$BENCHVENV/bin/uv" pip install --quiet -e "$BENCH/apps/frappe" \
+		--python "$BENCH/env/bin/python"
+fi
+
 # Use our locally built redis (6379); drop per-bench redis/socketio/watch entries.
 sed -i \
 	-e 's/^watch:/# watch:/' \
