@@ -279,6 +279,18 @@ if ! "$BENCH/env/bin/python" -c "import frappe" >/dev/null 2>&1; then
 		--python "$BENCH/env/bin/python"
 fi
 
+# frappe's JS deps (esbuild/fast-glob/...): partial bench-init runs die before
+# yarn install, and fresh apps clones still carry blocked yarnpkg.com URLs.
+for lock in "$BENCH/apps"/*/yarn.lock; do
+	[ -f "$lock" ] && sed -i 's#registry\.yarnpkg\.com#registry.npmjs.org#g' "$lock"
+done
+for appdir in "$BENCH/apps"/*/; do
+	if [ -f "$appdir/package.json" ] && [ ! -d "$appdir/node_modules" ]; then
+		log "yarn install in $appdir"
+		(cd "$appdir" && yarn install --silent)
+	fi
+done
+
 # Use our locally built redis (6379); drop per-bench redis/socketio/watch entries.
 sed -i \
 	-e 's/^watch:/# watch:/' \
