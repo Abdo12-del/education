@@ -159,6 +159,32 @@ esac
 CRON
 	chmod +x "$LOCAL/bin/crontab"
 fi
+# yarn shim: bench get-app runs "yarn install" on freshly cloned app trees whose
+# yarn.lock still points at blocked registry.yarnpkg.com -> rewrite to npmjs in
+# the target package dir, then delegate to the real yarn.js.
+NODE_YARN="$LOCAL/node24/bin/yarn"
+REAL_YARN_JS="$HOME/.local/yarn/bin/yarn.js"
+if [ -e "$NODE_YARN" ] && [ ! -e "$NODE_YARN.orig" ]; then
+	mv "$NODE_YARN" "$NODE_YARN.orig" 2>/dev/null || true
+fi
+if [ -f "$REAL_YARN_JS" ] && [ -d "$LOCAL/node24/bin" ]; then
+	cat > "$NODE_YARN" <<'YSHIM'
+#!/usr/bin/env bash
+d="$PWD"
+while :; do
+	for f in "$d/yarn.lock" "$d/package-lock.json"; do
+		[ -f "$f" ] && sed -i 's#registry[.]yarnpkg[.]com#registry.npmjs.org#g' "$f" 2>/dev/null || true
+	done
+	[ -f "$d/package.json" ] && break
+	[ "$d" = "/" ] && break
+	d=$(dirname "$d")
+done
+exec node "$HOME/.local/yarn/bin/yarn.js" "$@"
+YSHIM
+	chmod +x "$NODE_YARN"
+	# Yarn's own launcher symlink (yarnpkg) would shadow us via node24/bin/yarnpkg
+	rm -f "$LOCAL/node24/bin/yarnpkg" 2>/dev/null || true
+fi
 # python-crontab hardcodes /usr/bin/crontab
 if [ ! -x /usr/bin/crontab ]; then
 	sudo cp "$LOCAL/bin/crontab" /usr/bin/crontab 2>/dev/null || true
@@ -282,7 +308,7 @@ fi
 # frappe's JS deps (esbuild/fast-glob/...): partial bench-init runs die before
 # yarn install, and fresh apps clones still carry blocked yarnpkg.com URLs.
 for lock in "$BENCH/apps"/*/yarn.lock; do
-	[ -f "$lock" ] && sed -i 's#registry\.yarnpkg\.com#registry.npmjs.org#g' "$lock"
+	[ -f "$lock" ] && sed -i 's#registry[.]yarnpkg[.]com#registry.npmjs.org#g' "$lock"
 done
 for appdir in "$BENCH/apps"/*/; do
 	if [ -f "$appdir/package.json" ] && [ ! -d "$appdir/node_modules" ]; then
