@@ -19,7 +19,7 @@ export FRAPPE_PRELOAD_DATABASE_DRIVERS=none
 export PATH="$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
 cd "$BENCH"
 
-PREVIEW_HOST="${PREVIEW_HOST:-8000-ij2yzae0ypot9ylpkej3n.e2b.app}"
+PREVIEW_HOST="${PREVIEW_HOST:-8000-${E2B_SANDBOX_ID:-ij2yzae0ypot9ylpkej3n}.e2b.app}"
 SITE="${SITE:-school.localhost}"
 DB_PW="${PORTABLE_DB_ROOT_PASSWORD:-root}"
 

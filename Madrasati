@@ -22,7 +22,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_DIR="$REPO/local-db/run"
 LOG_DIR="$REPO/local-db/logs"
 SITE="${SITE:-school.localhost}"
-PREVIEW_HOST="${PREVIEW_HOST:-8000-ij2yzae0ypot9ylpkej3n.e2b.app}"
+PREVIEW_HOST="${PREVIEW_HOST:-8000-${E2B_SANDBOX_ID:-ij2yzae0ypot9ylpkej3n}.e2b.app}"
 export PATH="$REPO/local-db/.venv/bin:$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
 export FRAPPE_PRELOAD_DATABASE_DRIVERS=none
 
