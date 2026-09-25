@@ -14,6 +14,8 @@ log() { echo "[setup-site $(date +%H:%M:%S)] $*"; }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BENCH="$HOME/frappe-bench"
+# Run frappe on PyMySQL: no mysqlclient C library in this portable env.
+export FRAPPE_PRELOAD_DATABASE_DRIVERS=none
 export PATH="$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
 cd "$BENCH"
 
@@ -41,6 +43,17 @@ bench set-redis-socketio-host redis://127.0.0.1:6379
 # ---------------------------------------------------------------------------
 # 3. Create the site (frappe comes in automatically)
 # ---------------------------------------------------------------------------
+# Must be set before new-site: DB setup already reads frappe.conf.
+python3 - "$BENCH/sites/common_site_config.json" <<'PY'
+import json, sys, os
+path = sys.argv[1]
+conf = json.load(open(path)) if os.path.exists(path) else {}
+conf["use_mysqlclient"] = 0
+conf["db_host"] = "127.0.0.1"
+json.dump(conf, open(path, "w"), indent=4)
+print("[setup-site] common_site_config:", {"use_mysqlclient": 0, "db_host": "127.0.0.1"})
+PY
+
 if [ ! -d "sites/$SITE" ]; then
 	log "Creating site $SITE ..."
 	bench new-site "$SITE" \
@@ -62,9 +75,11 @@ cd ..
 # ---------------------------------------------------------------------------
 for app in payments erpnext education; do
 	log "Installing $app ..."
-	bench --site "$SITE" install-app "$app"
+	# --force tolerates leftovers from a previously interrupted install
+	bench --site "$SITE" install-app "$app" --force
 done
 
+bench --site "$SITE" set-config use_mysqlclient 0
 bench --site "$SITE" set-config developer_mode 1
 bench --site "$SITE" clear-cache
 bench use "$SITE"

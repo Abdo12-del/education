@@ -27,6 +27,8 @@ if [ ! -x "$HOME/.local/python314/bin/python3.14" ]; then
 fi
 PY314="$HOME/.local/python314/bin/python3.14"
 log "python: $($PY314 --version 2>&1)"
+# We run frappe on PyMySQL (use_mysqlclient=0); skip the mysqlclient preload.
+export FRAPPE_PRELOAD_DATABASE_DRIVERS=none
 
 # ---------------------------------------------------------------------------
 # 1. Node.js 24 (frappe requires node >= 24) from the npm registry

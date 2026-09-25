@@ -7,11 +7,21 @@
 set -euo pipefail
 
 export PATH="$HOME/.local/node24/bin:$HOME/.local/bin:$PATH"
+export FRAPPE_PRELOAD_DATABASE_DRIVERS=none
 cd "$HOME/frappe-bench"
 
 SITE="${SITE:-$(cat sites/currentsite.txt 2>/dev/null || true)}"
 echo "[bench] site: ${SITE:-<default>}"
 echo "[bench] redis: $(redis-cli -h 127.0.0.1 ping 2>/dev/null || echo DOWN)"
-echo "[bench] db: $(mariadb --host 127.0.0.1 --port "${PORTABLE_DB_PORT:-3306}" -u root -p"${PORTABLE_DB_ROOT_PASSWORD:-root}" -e 'SELECT 1' >/dev/null 2>&1 && echo OK || echo DOWN)"
+echo "[bench] db: $(python3 -c "
+import pymysql, os
+try:
+    pymysql.connect(host='127.0.0.1', port=int(os.environ.get('PORTABLE_DB_PORT', '3306')),
+                    user='root', password=os.environ.get('PORTABLE_DB_ROOT_PASSWORD', 'root'),
+                    connect_timeout=3).close()
+    print('OK')
+except Exception:
+    print('DOWN')
+")"
 
 exec bench start

@@ -13,7 +13,7 @@ PREFIX_SSL="$HOME/.local/openssl"
 PREFIX_PY="$HOME/.local/python314"
 SRC="$HOME/src"
 
-if [ -x "$PREFIX_PY/bin/python3.14" ]; then
+if [ -x "$PREFIX_PY/bin/python3.14" ] && [ -z "${PYTHON_REBUILD:-}" ]; then
 	log "Python 3.14 already present"
 	exit 0
 fi
@@ -52,6 +52,64 @@ fi
 log "openssl: $(ls "$PREFIX_SSL/include/openssl/ssl.h")"
 
 # ---------------------------------------------------------------------------
+# 2b. libffi (headers + lib for CPython's _ctypes; npm ships the release
+#     tarball with a pregenerated configure, no autotools needed here)
+# ---------------------------------------------------------------------------
+PREFIX_FFI="$HOME/.local/ffi"
+if [ ! -f "$PREFIX_FFI/lib/pkgconfig/libffi.pc" ]; then
+	log "Building libffi (for _ctypes)..."
+	rm -rf "$SRC/libffi-npm" && mkdir -p "$SRC/libffi-npm"
+	TGZ_URL=$(curl -s https://registry.npmjs.org/libffi | python3 -c "
+import json, sys
+v = json.load(sys.stdin)["dist-tags"]["latest"]
+print(f'https://registry.npmjs.org/libffi/-/libffi-{v}.tgz')")
+	curl -fsSL "$TGZ_URL" -o /tmp/libffi.tgz
+	tar -xzf /tmp/libffi.tgz -C "$SRC/libffi-npm" 2>/dev/null || tar -xzf /tmp/libffi.tgz -C "$SRC/libffi-npm"
+	rm -f /tmp/libffi.tgz
+	FFI_DIR=$(echo "$SRC"/libffi-npm/*)
+	(cd "$FFI_DIR" && ./configure --prefix="$PREFIX_FFI" && make -j2 && make install)
+fi
+export PKG_CONFIG_PATH="$PREFIX_FFI/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+log "libffi: $(pkg-config --modversion libffi 2>/dev/null || echo '?')"
+
+# ---------------------------------------------------------------------------
+# 2c. SQLite amalgamation (for CPython's _sqlite3 — frappe search + erpnext
+#     item search import sqlite3). Source: npm better-sqlite3 vendors it.
+# ---------------------------------------------------------------------------
+PREFIX_SQLITE="$HOME/.local/sqlite3"
+if [ ! -f "$PREFIX_SQLITE/lib/pkgconfig/sqlite3.pc" ]; then
+	log "Building SQLite amalgamation (for _sqlite3)..."
+	rm -rf "$SRC/sqlite-amalg" && mkdir -p "$SRC/sqlite-amalg"
+	BSQ_VER=$(curl -s https://registry.npmjs.org/better-sqlite3 | python3 -c 'import json,sys; print(json.load(sys.stdin)["dist-tags"]["latest"])')
+	curl -fsSL "https://registry.npmjs.org/better-sqlite3/-/better-sqlite3-$BSQ_VER.tgz" -o /tmp/bsq.tgz
+	tar -xzf /tmp/bsq.tgz -C "$SRC/sqlite-amalg" 2>/dev/null || true
+	rm -f /tmp/bsq.tgz
+	SQLITE_SRC=$(dirname "$(find "$SRC/sqlite-amalg" -name sqlite3.c | head -1)")
+	mkdir -p "$PREFIX_SQLITE/lib/pkgconfig" "$PREFIX_SQLITE/include"
+	cp "$SQLITE_SRC/sqlite3.c" "$SQLITE_SRC/sqlite3.h" "$SQLITE_SRC/sqlite3ext.h" "$SRC/sqlite-amalg/"
+	cd "$SRC/sqlite-amalg"
+	gcc -O2 -fPIC -DSQLITE_THREADSAFE=1 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_RTREE \
+		-DSQLITE_ENABLE_MEMORY_MANAGEMENT -c sqlite3.c -o sqlite3.o
+	ar rcs libsqlite3.a sqlite3.o
+	cp sqlite3.h sqlite3ext.h "$PREFIX_SQLITE/include/"
+	cp libsqlite3.a "$PREFIX_SQLITE/lib/"
+	cat > "$PREFIX_SQLITE/lib/pkgconfig/sqlite3.pc" <<'PC'
+prefix=$HOME/.local/sqlite3
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: SQLite
+Description: SQL database engine
+Version: 3.50.0
+Libs: -L${libdir} -lsqlite3 -lm -lpthread
+Cflags: -I${includedir}
+PC
+	cd "$SRC/cpython" 2>/dev/null || cd "$SRC"
+fi
+export PKG_CONFIG_PATH="$PREFIX_SQLITE/lib/pkgconfig:$PKG_CONFIG_PATH"
+log "sqlite3: $(pkg-config --modversion sqlite3 2>/dev/null || echo '?')"
+
+# ---------------------------------------------------------------------------
 # 3. CPython 3.14
 # ---------------------------------------------------------------------------
 log "Cloning CPython..."
@@ -78,8 +136,7 @@ log "Compiling CPython (make -j2, ~5-10 minutes)..."
 make -j2 2>&1 | tail -5
 make install 2>&1 | tail -5
 
-"$PREFIX_PY/bin/python3.14" -c "import ssl, zlib, zipfile, json, sqlite3" 2>/dev/null \
-	|| "$PREFIX_PY/bin/python3.14" -c "import ssl, zlib, zipfile, json; print('core modules OK')"
+"$PREFIX_PY/bin/python3.14" -c "import ssl, zlib, zipfile, json, ctypes; print('core modules OK (ctypes included)')"
 "$PREFIX_PY/bin/python3.14" -c "
 import ssl, zlib
 print('python:', __import__('sys').version.split()[0])
